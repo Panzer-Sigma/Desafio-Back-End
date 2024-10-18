@@ -1,0 +1,181 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Resources:
+
+# GraphQL Schemas
+  APIGraphQLSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      DefinitionS3Location: schema.graphql
+
+# Tabela de usuários - keys
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Usuarios2
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+#Tabela de contratos - keys 
+  ContractsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: Contratos2
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH  # Contract ID as primary key
+
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+# Definição do handler no lambda
+  GraphQLLambdaFunction2:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      Environment:
+        Variables:
+          Users_Table: !Ref UsersTable
+          Contracts_Table: !Ref ContractsTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ContractsTable
+          
+# Definição da API no APPSYNC
+  Power2GoAPI:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      Name: APIPower2Go2
+      AuthenticationType: API_KEY
+
+  # API Key for AppSync
+  GraphQLApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+
+
+  # Service Role for AppSync
+  AppSyncServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: AppSyncLambdaAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: "*"
+
+  # AppSync Data Source for Lambda
+  LambdaDataSource2:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      Name: LambdaDataSource2
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn: !GetAtt GraphQLLambdaFunction2.Arn
+      ServiceRoleArn: !GetAtt AppSyncServiceRole.Arn
+
+# AppSync Resolvers
+
+#Users
+  getUserResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      FieldName: getUser
+      TypeName: Query
+      DataSourceName: LambdaDataSource2
+
+  createUserResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      FieldName: createUser
+      TypeName: Mutation
+      DataSourceName: LambdaDataSource2
+
+  updateUserResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      FieldName: updateUser
+      TypeName: Mutation
+      DataSourceName: LambdaDataSource2
+
+  deleteUserResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      FieldName: deleteUser
+      TypeName: Mutation
+      DataSourceName: LambdaDataSource2
+
+
+#Contracts
+  getContractResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      FieldName: getContract
+      TypeName: Query
+      DataSourceName: LambdaDataSource2
+
+  getContractsByUserResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      FieldName: getContractsByUser
+      TypeName: Query
+      DataSourceName: LambdaDataSource2
+
+  createContractResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      FieldName: createContract
+      TypeName: Mutation
+      DataSourceName: LambdaDataSource2
+
+  updateContractResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      FieldName: updateContract
+      TypeName: Mutation
+      DataSourceName: LambdaDataSource2
+
+  deleteContractResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId: !GetAtt Power2GoAPI.ApiId
+      FieldName: deleteContract
+      TypeName: Mutation
+      DataSourceName: LambdaDataSource2
