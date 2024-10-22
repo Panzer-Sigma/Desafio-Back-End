@@ -1,4 +1,4 @@
-# Sample API em GRAPHQL / AWS APPSYNC: Contratos e Usuários
+# API em GRAPHQL / AWS APPSYNC: Contratos e Usuários
 Informações de como configurar AWS CLI e AWS SAM CLI: 
 https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/prerequisites.html
 
